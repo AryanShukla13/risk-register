@@ -25,7 +25,17 @@ function useInvalidatingMutation<TVars, TResult>(fn: (vars: TVars) => Promise<TR
 
 export const useCreateRisk = () => useInvalidatingMutation((input: RiskInput) => api.createRisk(input))
 export const useUpdateRisk = (id: number) => useInvalidatingMutation((input: RiskInput) => api.updateRisk(id, input))
-export const useDeleteRisk = () => useInvalidatingMutation((id: number) => api.deleteRisk(id))
+export function useDeleteRisk() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (id: number) => api.deleteRisk(id),
+    onSuccess: (_data, id) => {
+      // Drop the deleted risk's detail query; refetching it would 404 and flash an error.
+      queryClient.removeQueries({ queryKey: riskKeys.detail(id) })
+      return queryClient.invalidateQueries({ queryKey: ['risks', 'list'] })
+    },
+  })
+}
 export const useAddMitigation = (riskId: number) =>
   useInvalidatingMutation((input: MitigationInput) => api.addMitigation(riskId, input))
 export const useDeleteMitigation = (riskId: number) =>
