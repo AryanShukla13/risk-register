@@ -6,36 +6,57 @@ A small full-stack Risk Register: create risks, score them, attach mitigations, 
 - **Frontend:** React 19, TypeScript, Vite, TanStack Query, React Router, react-hook-form + zod
 - Design doc: [docs/LLD.md](docs/LLD.md)
 
-## Run it locally (about 3 minutes)
+## Run it locally (about 5 minutes)
 
-Prerequisites: Java 21+, Maven 3.9+, Node 20+, PostgreSQL running locally.
+**Prerequisites**
+
+| Tool | Version | Check |
+|---|---|---|
+| Java (JDK) | 21+ | `java -version` |
+| Node.js | 20+ | `node -v` |
+| PostgreSQL | any recent, running locally | `pg_isready` |
+
+Maven is **not** required; the repo ships the Maven wrapper (`./mvnw`).
 
 ```bash
-# 1. Database (once)
+# 1. Database (once). Creates an empty database; Flyway builds the tables on first start.
 createdb riskregister
 
-# 2. Backend, on :8080 (Flyway creates the tables on first start)
+# 2. Backend on http://localhost:8080
 cd backend
-mvn spring-boot:run
+./mvnw spring-boot:run
 
-# 3. Frontend, on :5173 (new terminal; /api is proxied to :8080)
+# 3. Frontend (in a second terminal)
 cd frontend
 npm install
 npm run dev
 ```
 
-Open http://localhost:5173.
+Open the URL Vite prints (normally http://localhost:5173). The dev server proxies `/api` to the backend on port 8080, so there is nothing else to configure.
 
-Database settings default to `jdbc:postgresql://localhost:5432/riskregister` with your OS username and no password. Override with `DB_URL`, `DB_USER`, `DB_PASSWORD`.
+**Database settings.** By default the backend connects to `jdbc:postgresql://localhost:5432/riskregister` as your OS user with no password (the usual Homebrew / local-install setup). If yours differs, set environment variables before step 2:
+
+```bash
+export DB_URL=jdbc:postgresql://localhost:5432/riskregister
+export DB_USER=postgres
+export DB_PASSWORD=secret
+```
+
+**Troubleshooting**
+
+- `database "riskregister" does not exist`: run step 1.
+- `password authentication failed` / `role ... does not exist`: set `DB_USER` and `DB_PASSWORD` as above.
+- `Port 8080 was already in use`: stop the other process, or run `./mvnw spring-boot:run -Dspring-boot.run.arguments=--server.port=8081` and set the proxy target in `frontend/vite.config.ts`.
+- Dashboard shows "Cannot reach the server": the backend is not running yet.
 
 ## Tests
 
 ```bash
-cd backend  && mvn test        # unit + integration tests
-cd frontend && npm test        # Vitest
+cd backend  && ./mvnw test     # 46 tests: scoring units, service rules, API integration
+cd frontend && npm test        # 12 tests (Vitest)
 ```
 
-Backend integration tests run against in-memory H2 in PostgreSQL mode, so no database is needed to run them. The trade-off: H2 can hide Postgres-specific behaviour. The migration sticks to portable SQL for that reason, and I checked the app against real Postgres by hand (Hibernate `ddl-auto=validate` checks entities against the Flyway schema at startup).
+No database is needed to run the tests. The backend integration tests use in-memory H2 in PostgreSQL mode. The trade-off: H2 can hide Postgres-specific behaviour, so the migration sticks to portable SQL, and the app was also run against real Postgres (Hibernate `ddl-auto=validate` checks the entities against the Flyway schema at startup).
 
 ## Scoring
 
